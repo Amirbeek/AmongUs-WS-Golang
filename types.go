@@ -1,4 +1,4 @@
-package main
+package AmongUs_WS_Golang
 
 type Envelope struct {
 	Type string      `json:"type"`

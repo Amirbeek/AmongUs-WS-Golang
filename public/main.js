@@ -330,9 +330,11 @@ actionBtn.addEventListener('click', ()=>{
     if(!targetId) return;
 
     if(state.role === 'killer'){
+        // Kelajak: kill
         const ok = sendEnvelope('kill', { targetId, from: state.username });
         if (!ok) addMsg('System', `Attempted to kill ${targetId} (offline).`);
     } else {
+        // Kelajak: vote/suspect
         const ok = sendEnvelope('vote', { targetId, from: state.username });
         if (!ok) addMsg('System', `Voted for ${targetId} (offline).`);
     }

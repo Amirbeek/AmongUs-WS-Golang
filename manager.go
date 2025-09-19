@@ -14,15 +14,77 @@ import (
 var websocketUpgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
+	CheckOrigin:     checkOrigin,
+}
+
+func checkOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	switch origin {
+	case "http://localhost:3000":
 		return true
-	},
+	default:
+		return false
+	}
 }
 
 type Manager struct {
 	mu    sync.RWMutex
 	rooms map[string]*Room
 	ctx   context.Context
+}
+
+func (m *Manager) getRooms(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	type roomItem struct {
+		ID    string `json:"id"`   // FRONT: value.split('|') uchun
+		Name  string `json:"name"` // ko‘rinadigan nom
+		Code  string `json:"code"` // ixtiyoriy, foydali
+		Count int    `json:"count"`
+	}
+
+	m.mu.RLock()
+	items := make([]roomItem, 0, len(m.rooms))
+	for code, room := range m.rooms {
+		room.mu.RLock()
+		cnt := len(room.Clients)
+		room.mu.RUnlock()
+
+		name := code
+		items = append(items, roomItem{
+			ID:    code + "|" + name,
+			Name:  name,
+			Code:  code,
+			Count: cnt,
+		})
+	}
+	m.mu.RUnlock()
+
+	if err := json.NewEncoder(w).Encode(items); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (m *Manager) GetOrCreate(code string) *Room {
+	code = strings.ToUpper(strings.TrimSpace(code))
+
+	m.mu.RLock()
+	r := m.rooms[code]
+	m.mu.RUnlock()
+	if r != nil {
+		return r
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if r = m.rooms[code]; r != nil {
+		return r
+	}
+	r = NewRoom(code)
+	m.rooms[code] = r
+	go r.run()
+	return r
 }
 
 func NewManager(ctx context.Context) *Manager {
@@ -35,68 +97,24 @@ func NewManager(ctx context.Context) *Manager {
 func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	roomCode := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("room")))
 	name := strings.TrimSpace(r.URL.Query().Get("name"))
-	if roomCode == "" && name == "" {
-		http.Error(w, "Rooom and Username is required", http.StatusBadRequest)
-		return
-	}
-	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 
-	if err != nil {
-		log.Println(err)
+	if roomCode == "" || name == "" {
+		http.Error(w, "room & name required", http.StatusBadRequest)
 		return
 	}
+
+	conn, err := websocketUpgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("upgrade:", err)
+		return
+	}
+	log.Printf("WS joined room=%s name=%s", roomCode, name)
+
 	room := m.GetOrCreate(roomCode)
-	client := NewClient(conn, name, room)
-	log.Printf("Connected to Client %s\n", name)
+	client := NewClient(conn, room, name)
+
 	room.register <- client
+
 	go client.writePump()
 	go client.readPump()
-}
-
-func (m *Manager) GetOrCreate(code string) *Room {
-	code = strings.ToUpper(strings.TrimSpace(code))
-
-	m.mu.RLock()
-	room, ok := m.rooms[code]
-	m.mu.RUnlock()
-	if ok {
-		return room
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if room, ok = m.rooms[code]; ok {
-		return room
-	}
-
-	room = NewRoom(code)
-	m.rooms[code] = room
-	go room.run()
-	return room
-}
-
-func (m *Manager) GetRooms(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-	m.mu.RLock()
-	items := make([]roomItem, 0, len(m.rooms))
-	for code, room := range m.rooms {
-		room.mu.RLock()
-		cnt := len(room.Clients)
-		room.mu.RUnlock()
-
-		items = append(items, roomItem{
-			ID:    code,
-			Name:  code,
-			Code:  code,
-			Count: cnt,
-		})
-	}
-	m.mu.RUnlock()
-
-	if err := json.NewEncoder(w).Encode(items); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 }

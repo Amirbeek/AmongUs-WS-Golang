@@ -1,77 +1,63 @@
-package main
+package AmongUs_WS_Golang
 
 import (
 	"encoding/json"
 	"sync"
 )
 
-// JSON ga serialize qilish uchun helper
-func mustJSON(v interface{}) []byte {
-	b, _ := json.Marshal(v)
-	return b
-}
+func mustJSON(v interface{}) []byte { b, _ := json.Marshal(v); return b }
 
-type roomItem struct {
-	ID    string `json:"id"`
-	Name  string `json:"name"`
-	Code  string `json:"code"`
-	Count int    `json:"count"`
-}
-
-// Room - bitta chat/xona manageri
 type Room struct {
 	Code       string
-	Clients    map[*Client]bool
+	Clients    map[*Client]struct{}
 	register   chan *Client
 	unregister chan *Client
 	broadcast  chan []byte
 	mu         sync.RWMutex
 }
 
-// Yangi xona yaratish
 func NewRoom(code string) *Room {
 	return &Room{
 		Code:       code,
-		Clients:    make(map[*Client]bool),
+		Clients:    make(map[*Client]struct{}),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		broadcast:  make(chan []byte),
+		broadcast:  make(chan []byte, 128),
 		mu:         sync.RWMutex{},
 	}
 }
 
-// Room lifecycle loop
 func (r *Room) run() {
 	for {
 		select {
-		// Xonaga yangi client qo‘shildi
-		case client := <-r.register:
+		case c := <-r.register:
 			r.mu.Lock()
-			r.Clients[client] = true
+			r.Clients[c] = struct{}{}
 			r.mu.Unlock()
 
-			// Hamma clientlarga joined habar yuborish
+			//_ = c.conn.WriteJSON(map[string]any{
+			//	"type": "hello",
+			//	"data": map[string]string{"room": r.Code, "name": c.name},
+			//})
+			r.broadcastState()
 			r.mu.RLock()
 			for cl := range r.Clients {
 				select {
-				case cl.send <- []byte("joined: " + cl.name):
+				case cl.send <- []byte("joined: " + c.name):
 				default:
 				}
 			}
 			r.mu.RUnlock()
-
 			r.broadcastState()
 
-		// Client chiqib ketdi
-		case client := <-r.unregister:
+		case c := <-r.unregister:
 			r.mu.Lock()
-			if _, ok := r.Clients[client]; ok {
-				delete(r.Clients, client)
-				close(client.send)
+			if _, ok := r.Clients[c]; ok {
+				delete(r.Clients, c)
+				close(c.send)
 			}
 			r.mu.Unlock()
 
-		// Broadcast yuborish
 		case msg := <-r.broadcast:
 			r.mu.RLock()
 			for cl := range r.Clients {
@@ -85,24 +71,23 @@ func (r *Room) run() {
 	}
 }
 
-// Snapshot xolatni qaytaryapmiz
 func (r *Room) snapshot() StateOut {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	st := StateOut{Room: r.Code}
 
-	state := StateOut{Room: r.Code}
 	for c := range r.Clients {
-		state.Players = append(state.Players, PlayerSnap{
+		st.Players = append(st.Players, PlayerSnap{
 			ID:    c.ID,
 			Name:  c.name,
 			Alive: c.Alive,
 			Ready: c.Ready,
 		})
+
 	}
-	return state
+	return st
 }
 
-// Xona holatini hammaga yuborish
 func (r *Room) broadcastState() {
 	st := r.snapshot()
 	env := Envelope{Type: "state", Data: st}

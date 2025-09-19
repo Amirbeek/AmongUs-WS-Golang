@@ -3,24 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 )
 
-var port string = "8000"
-
 func main() {
-	setUpApi()
-	fmt.Printf("Server started at port: %n \n ", port)
-	err := http.ListenAndServe(":"+port, nil)
-	if err != nil {
-		return
-	}
+	setupAPI()
+	fmt.Print("Server started at port 3000\n")
+	log.Fatal(http.ListenAndServe(":3000", nil))
 }
 
-func setUpApi() {
+func setupAPI() {
 	ctx := context.Background()
-	manager := NewManager(ctx)
-	http.Handle("/", http.FileServer(http.Dir("public")))
+	manager := NewManager(ctx) // <-- pass ctx
+
+	http.Handle("/", http.FileServer(http.Dir("./public")))
 	http.HandleFunc("/ws", manager.ServeWS)
-	http.HandleFunc("/rooms", manager.GetRooms)
+	http.HandleFunc("/rooms", manager.getRooms)
 }
