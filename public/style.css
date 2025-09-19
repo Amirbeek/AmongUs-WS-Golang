@@ -1,24 +1,31 @@
 :root {
-    --bg:#0b0f1a;            /* deep space */
-    --bg-2:#0f1526;          /* panel */
-    --panel:#141b2e;         /* card */
-    --muted:#6b7280;         /* slate */
-    --text:#e6e9f2;          /* light */
-    --accent:#5eead4;        /* cyan */
-    --danger:#ef4444;        /* killer red */
-    --warn:#f59e0b;          /* yellow */
-    --ok:#22c55e;            /* green */
+    --bg:#0b0f1a;
+    --bg-2:#0f1526;
+    --panel:#141b2e;
+    --muted:#6b7280;
+    --text:#e6e9f2;
+    --accent:#5eead4;
+    --danger:#ef4444;
+    --warn:#f59e0b;
+    --ok:#22c55e;
     --shadow:0 10px 30px rgba(0,0,0,.35);
     --rounded:22px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
-    margin:0; background:radial-gradient(1200px 800px at 10% 10%, #12182b 0%, var(--bg) 40%) , radial-gradient(800px 600px at 90% 10%, #111827 0%, var(--bg) 50%); color:var(--text);
+    margin:0;
+    background:radial-gradient(1200px 800px at 10% 10%, #12182b 0%, var(--bg) 40%) ,
+    radial-gradient(800px 600px at 90% 10%, #111827 0%, var(--bg) 50%);
+    color:var(--text);
     font-family:'Nunito',system-ui,-apple-system,Segoe UI,Roboto,Arial,Helvetica,sans-serif;
     letter-spacing:.2px;
 }
-.stars{position:fixed;inset:0;pointer-events:none;opacity:.05;background-image:radial-gradient(#ffffff 1px, transparent 1px);background-size:3px 3px;mask-image:radial-gradient(circle at center, rgba(0,0,0,.35), rgba(0,0,0,1) 60%);}
+.stars{position:fixed;inset:0;pointer-events:none;opacity:.05;
+    background-image:radial-gradient(#ffffff 1px, transparent 1px);
+    background-size:3px 3px;
+    mask-image:radial-gradient(circle at center, rgba(0,0,0,.35), rgba(0,0,0,1) 60%);
+}
 
 /* Landing */
 .landing{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(6,10,20,.75);backdrop-filter:blur(10px);}
@@ -36,13 +43,33 @@ body{
 .btn:active{transform:translateY(1px)}
 .btn:disabled{filter:grayscale(.6);opacity:.7;cursor:not-allowed}
 
+.panel.main {
+    display: grid;
+    grid-template-rows: auto 1fr auto;  /* topbar, chat, composer */
+    height: 100%;                       /* fills its grid cell */
+    min-height: 0;                      /* allow shrinking for scroll */
+}
+
 .hint{margin-top:10px;color:#9aa1b7;font-size:13px}
 
 /* App Layout */
-.app{display:none;height:100vh;padding:18px;gap:18px;grid-template-columns:280px 1fr;}
+.app{
+    display:grid;
+    height:100vh;
+    padding:18px;
+    gap:18px;
+    grid-template-columns:280px 1fr;
+    min-height: 0;                      /* NEW: ensures proper grid shrink */
+}
 .app.visible{display:grid}
 
-.panel{background:linear-gradient(180deg,#121a33,#0f1526 80%);border:1px solid #1e2441;border-radius:var(--rounded);box-shadow:var(--shadow)}
+.panel{
+    background:linear-gradient(180deg,#121a33,#0f1526 80%);
+    border:1px solid #1e2441;
+    border-radius:var(--rounded);
+    box-shadow:var(--shadow);
+    min-height: 0;                      /* NEW: allows children scroll */
+}
 
 /* Sidebar */
 .sidebar{padding:16px;display:flex;flex-direction:column;gap:12px}
@@ -64,14 +91,20 @@ body{
 .btn.full{width:100%}
 
 /* Main */
-.main{display:grid;grid-template-rows:auto 1fr auto}
+.main{display:grid;grid-template-rows:auto 1fr auto;min-height:0;} /* ensure shrink */
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid #1e2441}
 .title{display:flex;align-items:center;gap:12px}
 .title h2{margin:0}
 .dev{display:flex;align-items:center;gap:8px}
 .dev select{background:#0e1427;border:1px solid #253056;color:var(--text);padding:10px;border-radius:10px}
 
-.chat{padding:16px;overflow:auto}
+.chat{
+    padding:16px;
+    overflow-y:auto;
+    overflow-x:hidden;
+    scroll-behavior:smooth;
+    min-height:0;          /* NEW: critical for scroll */
+}
 .msg{display:flex;gap:10px;margin-bottom:12px}
 .bubble{max-width:70%;padding:12px 14px;border-radius:16px;border:1px solid #253056;background:#0e1427}
 .bubble.self{background:linear-gradient(180deg,#0fb9a9 0%, #0a837b 100%);color:#001312;border-color:transparent}
@@ -86,3 +119,8 @@ body{
 
 /* Utility */
 .hidden{display:none}
+
+/* Scrollbar styling */
+.chat::-webkit-scrollbar {width:8px;}
+.chat::-webkit-scrollbar-thumb {background:#253056;border-radius:4px;}
+.chat::-webkit-scrollbar-track {background:transparent;}

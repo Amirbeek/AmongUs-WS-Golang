@@ -36,13 +36,6 @@ type Manager struct {
 func (m *Manager) getRooms(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	type roomItem struct {
-		ID    string `json:"id"`   // FRONT: value.split('|') uchun
-		Name  string `json:"name"` // ko‘rinadigan nom
-		Code  string `json:"code"` // ixtiyoriy, foydali
-		Count int    `json:"count"`
-	}
-
 	m.mu.RLock()
 	items := make([]roomItem, 0, len(m.rooms))
 	for code, room := range m.rooms {

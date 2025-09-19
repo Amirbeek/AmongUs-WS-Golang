@@ -1,4 +1,4 @@
-package AmongUs_WS_Golang
+package main
 
 const (
 	EVJoin      string = "join"       // server → clients (system)

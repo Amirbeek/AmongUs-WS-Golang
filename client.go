@@ -1,4 +1,4 @@
-package AmongUs_WS_Golang
+package main
 
 import (
 	"log"

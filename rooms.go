@@ -1,4 +1,4 @@
-package AmongUs_WS_Golang
+package main
 
 import (
 	"encoding/json"
@@ -7,6 +7,12 @@ import (
 
 func mustJSON(v interface{}) []byte { b, _ := json.Marshal(v); return b }
 
+type roomItem struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Code  string `json:"code"`
+	Count int    `json:"count"`
+}
 type Room struct {
 	Code       string
 	Clients    map[*Client]struct{}

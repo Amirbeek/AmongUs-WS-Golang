@@ -86,11 +86,7 @@ function renderRoom(){
 function renderPlayers(){
     playerList.innerHTML = '';
     targetSelect.innerHTML = '<option value="" selected>Select a player…</option>';
-
-    // Serverdan kelgan players bo‘lsa shuni ishlatamiz; bo‘lmasa fake ro‘yxat qoladi
     const list = (state.players && state.players.length) ? state.players : [];
-
-    // “self”ni aniqlash: selfId bo‘lsa o‘sha, bo‘lmasa isim orqali
     const isSelf = (p) => state.selfId ? (p.id === state.selfId) : (p.name === state.username);
 
     const all = list.length
@@ -161,6 +157,16 @@ function validateEnter(){
     const roomOk = roomVal !== 'custom' || customRoom.value.trim().length > 0;
     enterBtn.disabled = !(nameOk && roomOk);
 }
+function typingAct(username) {
+    const typ = document.querySelector('.type');
+    typ.textContent = `${username} typing…`;
+
+    // Clear the indicator after 3 seconds of inactivity
+    clearTimeout(typingAct.timeout);
+    typingAct.timeout = setTimeout(() => {
+        typ.textContent = '';
+    }, 3000);
+}
 
 // --- WebSocket ---
 function connectWS(){
@@ -184,13 +190,14 @@ function connectWS(){
 
                     switch (t) {
                         case 'hello': {
-                            // {room, name} keladi
                             if (d.room) state.room.code = d.room;
                             addMsg('System', `Connected to room #${d.room || state.room.code} as ${d.name || state.username}`);
                             break;
                         }
+                        case 'typing':
+                            typingAct(d.username);
+                            break;
                         case 'state': {
-                            // {room, phase, gameEndsInSec, players:[{id,name,alive,ready}], you:{id,role}}
                             if (d.room) state.room.code = d.room;
                             if (d.phase) state.phase = d.phase;
                             if (Array.isArray(d.players)) state.players = d.players;
@@ -209,7 +216,6 @@ function connectWS(){
                             break;
                         }
                         case 'chat': {
-                            // {from, text}
                             const from = d.from || 'Unknown';
                             const text = d.text || '';
                             const self = (from === state.username);
@@ -310,6 +316,10 @@ nameInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !enterBtn.dis
 // });
 
 // --- Chat actions (REAL DATA) ---
+
+msgInput.addEventListener('input', () => {
+    sendEnvelope("typing", { username: state.username });
+});
 sendBtn.addEventListener('click', ()=>{
     const val = msgInput.value.trim();
     if(!val) return;
