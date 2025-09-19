@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Imposter Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="stars"></div>
+
+<!-- Landing / Room + Name Prompt -->
+<section class="landing" id="landing">
+    <div class="card">
+        <h1>Enter the Ship</h1>
+        <p class="subtitle">Choose a room and type your crewmate name to join.</p>
+
+        <div class="grid">
+            <div class="stack">
+                <label class="meta" for="roomSelect">Room</label>
+                <select id="roomSelect" class="select">
+                    <option value="custom">Custom…</option>
+                    <option value="bukhara">Bukhara</option>
+                </select>
+            </div>
+            <div id="customRoomWrap" class="stack hidden">
+                <label class="meta" for="customRoom">Custom Room</label>
+                <input id="customRoom" class="input" type="text" placeholder="e.g. X9‑UZB" maxlength="16" />
+            </div>
+        </div>
+
+        <div class="row">
+            <input id="nameInput" class="input" type="text" placeholder="e.g. Fazliddin" maxlength="20" style="flex:1"/>
+            <button id="enterBtn" class="btn" disabled>Enter</button>
+        </div>
+
+        <p class="hint">No password needed. Roles and room membership will be handled by your backend. UI includes a dev switch to simulate roles.</p>
+    </div>
+</section>
+
+<!-- App -->
+<main class="app" id="app">
+    <!-- Sidebar -->
+    <aside class="panel sidebar" id="sidebar">
+        <div class="room-head">
+            <div>
+                <div id="roomBadge" class="badge" style="background:rgba(88,101,242,.15); color:#c7d2fe; border:1px solid rgba(88,101,242,.35)">Room #A1</div>
+            </div>
+            <div id="roleBadge" class="badge role crew">Crewmate</div>
+        </div>
+
+        <div class="players" id="playerList"></div>
+
+        <!-- Actions -->
+        <div class="action">
+            <select id="targetSelect" class="select-sm">
+                <option value="" selected>Qotilni Tanlang…</option>
+            </select>
+            <button id="actionBtn" class="btn full">Suspect</button>
+        </div>
+    </aside>
+
+    <!-- Main Pane -->
+    <section class="panel main" id="mainPanel">
+        <div class="topbar">
+            <div class="title">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M4 12a8 8 0 1 1 16 0v6a2 2 0 0 1-2 2h-2l-1.2 2a1 1 0 0 1-1.6 0L12 20H8a2 2 0 0 1-2-2v-6Z" stroke="#93c5fd" stroke-width="1.2"/>
+                </svg>
+                <h2>Among‑Us Chat</h2>
+            </div>
+        </div>
+
+        <div class="chat" id="chatArea"></div>
+
+        <div class="composer">
+            <input id="msgInput" type="text" placeholder="Type a message and hit Enter…" />
+            <button id="sendBtn" class="btn">Send</button>
+        </div>
+    </section>
+</main>
+
+<script src="main.js"></script>
+</body>
+</html>
