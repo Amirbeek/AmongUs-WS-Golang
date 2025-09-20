@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 )
 
 var websocketUpgrader = websocket.Upgrader{
@@ -16,6 +17,10 @@ var websocketUpgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 	CheckOrigin:     checkOrigin,
 }
+var rdb = redis.NewClient(&redis.Options{
+	Addr: "localhost:6379",
+	DB:   0,
+})
 
 func checkOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
@@ -102,10 +107,14 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("WS joined room=%s name=%s", roomCode, name)
-
+	key := "room:" + roomCode
+	ctx := context.Background()
+	history, err := rdb.LRange(ctx, key, 0, -1).Result()
 	room := m.GetOrCreate(roomCode)
 	client := NewClient(conn, room, name)
-
+	for _, msg := range history {
+		client.send <- []byte(msg)
+	}
 	room.register <- client
 
 	go client.writePump()

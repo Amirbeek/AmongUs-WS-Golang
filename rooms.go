@@ -20,6 +20,8 @@ type Room struct {
 	unregister chan *Client
 	broadcast  chan []byte
 	mu         sync.RWMutex
+	Ready      int
+	active     int
 }
 
 func NewRoom(code string) *Room {
@@ -30,6 +32,7 @@ func NewRoom(code string) *Room {
 		unregister: make(chan *Client),
 		broadcast:  make(chan []byte, 128),
 		mu:         sync.RWMutex{},
+		active:     0,
 	}
 }
 
@@ -45,6 +48,7 @@ func (r *Room) run() {
 			//	"type": "hello",
 			//	"data": map[string]string{"room": r.Code, "name": c.name},
 			//})
+			r.active++
 			r.broadcastState()
 			r.mu.RLock()
 			for cl := range r.Clients {
@@ -62,6 +66,7 @@ func (r *Room) run() {
 				delete(r.Clients, c)
 				close(c.send)
 			}
+			r.active--
 			r.mu.Unlock()
 
 		case msg := <-r.broadcast:
@@ -89,7 +94,6 @@ func (r *Room) snapshot() StateOut {
 			Alive: c.Alive,
 			Ready: c.Ready,
 		})
-
 	}
 	return st
 }
@@ -98,4 +102,15 @@ func (r *Room) broadcastState() {
 	st := r.snapshot()
 	env := Envelope{Type: "state", Data: st}
 	r.broadcast <- mustJSON(env)
+}
+
+func (r *Room) allReady() bool {
+	if len(r.Clients) == r.Ready {
+		return true
+	}
+	return false
+}
+
+func (r *Room) startGameCountDown() {
+
 }

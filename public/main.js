@@ -1,6 +1,3 @@
-// --- Real-time Front (Among-Us style) ---
-
-// App State
 const state = {
     username: null,
     room: { code: 'A1', name: 'Skeld' },
@@ -8,23 +5,15 @@ const state = {
     phase: 'waiting',
     selfId: null,
     players: [
-        { id: 'p1', name: 'Nova',  alive: true },
-        { id: 'p2', name: 'Bolt',  alive: true },
-        { id: 'p3', name: 'Echo',  alive: true },
-        { id: 'p4', name: 'Pixel', alive: true },
-        { id: 'p5', name: 'Astra', alive: true },
-        { id: 'p6', name: 'Vanta', alive: true },
     ],
     messages: [
         { from: 'System', text: 'Welcome aboard! Discuss and find the killer…', self: false },
     ],
 };
-
+let agreedGame = false
 let lastSentText = null;
 let lastSentAt = 0;
 let conn = null;
-
-// --- DOM Refs ---
 const landing = document.getElementById('landing');
 const app = document.getElementById('app');
 const nameInput = document.getElementById('nameInput');
@@ -41,15 +30,29 @@ const actionBtn = document.getElementById('actionBtn');
 const chatArea = document.getElementById('chatArea');
 const msgInput = document.getElementById('msgInput');
 const sendBtn = document.getElementById('sendBtn');
+const readyBtn = document.getElementById('startBtn');
+
+
+function SendRead() {
+    const playerCount = state.players?.length || 0;
+    if (agreedGame) {
+        readyBtn.disabled = true;
+    } else {
+        readyBtn.disabled = playerCount < 3;
+    }
+}
+
+
 // const devRole = document.getElementById('devRole');
 const mainPanel = document.getElementById('mainPanel');
 const sidebar = document.getElementById('sidebar');
 
-// --- Helpers ---
+//  Helpers
 function sanitize(str){ return String(str).replace(/[<>]/g, s => ({'<':'&lt;','>':'&gt;'}[s])); }
 function isOpen(){ return conn && conn.readyState === WebSocket.OPEN; }
-function addMsg(from, text, self=false){
-    state.messages.push({ from, text, self });
+
+function addMsg(from, text, self=false, type="user"){
+    state.messages.push({ from, text, self , type});
     renderChat();
 }
 function sendEnvelope(type, data){
@@ -63,7 +66,7 @@ function sendEnvelope(type, data){
     }
 }
 
-// --- Rendering ---
+//  Rendering
 function renderRole(){
     roleBadge.textContent = state.role === 'killer' ? 'Killer' : 'Crewmate';
     roleBadge.className = 'badge role ' + (state.role === 'killer' ? 'killer' : 'crew');
@@ -123,23 +126,37 @@ function renderPlayers(){
     });
 }
 
-function renderChat(){
+function renderChat() {
     chatArea.innerHTML = '';
-    state.messages.forEach(m=>{
+    state.messages.forEach(m => {
+        if (m.type === 'system') {
+            const sysLine = document.createElement('div');
+            sysLine.className = 'system-msg';
+            sysLine.textContent = m.text;
+            chatArea.appendChild(sysLine);
+            return;
+        }
+
         const line = document.createElement('div');
         line.className = 'msg';
+
         const bubble = document.createElement('div');
         const isSelf = m.self === true || (m.from && m.from === state.username);
         bubble.className = 'bubble' + (isSelf ? ' self' : '');
+
         const meta = document.createElement('div');
         meta.className = 'meta';
         meta.textContent = m.from || 'Unknown';
+
         const txt = document.createElement('div');
         txt.innerHTML = sanitize(m.text);
-        bubble.appendChild(meta); bubble.appendChild(txt);
+
+        bubble.appendChild(meta);
+        bubble.appendChild(txt);
         line.appendChild(bubble);
         chatArea.appendChild(line);
     });
+
     chatArea.scrollTop = chatArea.scrollHeight;
 }
 
@@ -150,13 +167,13 @@ function mountApp(){
     renderChat();
 }
 
-// --- Validation for Enter button ---
 function validateEnter(){
     const nameOk = nameInput.value.trim().length > 0;
     const roomVal = roomSelect.value;
     const roomOk = roomVal !== 'custom' || customRoom.value.trim().length > 0;
     enterBtn.disabled = !(nameOk && roomOk);
 }
+
 function typingAct(username) {
     const typ = document.querySelector('.type');
     typ.textContent = `${username} typing…`;
@@ -168,7 +185,6 @@ function typingAct(username) {
     }, 3000);
 }
 
-// --- WebSocket ---
 function connectWS(){
     try {
         const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -191,7 +207,7 @@ function connectWS(){
                     switch (t) {
                         case 'hello': {
                             if (d.room) state.room.code = d.room;
-                            addMsg('System', `Connected to room #${d.room || state.room.code} as ${d.name || state.username}`);
+                            addMsg('System', `${d.name} is ready to play`, false, 'system');
                             break;
                         }
                         case 'typing':
@@ -205,6 +221,13 @@ function connectWS(){
                                 if (d.you.id) state.selfId = d.you.id;
                                 if (d.you.role) state.role = d.you.role;
                             }
+                            const me = state.players.find(p => p.name === state.username);
+
+                            if (me && me.ready && !agreedGame) {
+                                agreedGame = true;
+                                readyBtn.disabled = true;
+                            }
+                            SendRead();
                             renderRole();
                             renderRoom();
                             renderPlayers();
@@ -230,10 +253,19 @@ function connectWS(){
                             addMsg('System', d.note || 'Voting ended.');
                             break;
                         }
+                        case 'agree': {
+                            SendRead();
+                            addMsg('System', `${d.username} is ready to play`, false, 'system');
+                            break;
+                        }
                         case 'end': {
                             // {result: "..."}
                             addMsg('System', `Game ended: ${d.result || ''}`);
                             break;
+                        }
+                        case 'startGame':{
+                            
+                            break
                         }
                         default: {
                             // Unknown type — ko‘rsatib qo‘yamiz
@@ -243,7 +275,6 @@ function connectWS(){
                     return;
                 }
             } catch (e) {
-                // JSON emas — oddiy matn sifatida ishlaymiz
             }
             addMsg('System', asText);
         };
@@ -315,7 +346,14 @@ nameInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && !enterBtn.dis
 //     renderRole();
 // });
 
-// --- Chat actions (REAL DATA) ---
+// hat actions (REAL DATA)
+readyBtn.addEventListener('click', () => {
+    if (!agreedGame) {
+        sendEnvelope("agree", { username: state.username });
+        agreedGame = true;
+        readyBtn.disabled = true;
+    }
+});
 
 msgInput.addEventListener('input', () => {
     sendEnvelope("typing", { username: state.username });

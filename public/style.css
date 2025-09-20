@@ -124,3 +124,22 @@ body{
 .chat::-webkit-scrollbar {width:8px;}
 .chat::-webkit-scrollbar-thumb {background:#253056;border-radius:4px;}
 .chat::-webkit-scrollbar-track {background:transparent;}
+.system-msg {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-style: italic;
+    margin: 8px auto;
+    padding: 6px 12px;
+    border-radius: 12px;
+    background: rgba(20, 27, 46, 0.7);
+    border: 1px solid rgba(94, 234, 212, 0.25);
+    box-shadow: 0 0 8px rgba(94, 234, 212, 0.15);
+    display: inline-block;
+}
+
+.btn:disabled {
+    filter: grayscale(.6);
+    opacity: .7;
+    cursor: not-allowed;
+}

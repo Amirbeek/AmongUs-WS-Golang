@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"log"
 	"strings"
 	"time"
@@ -63,18 +65,59 @@ func (c *Client) readPump() {
 
 	for {
 		_, message, err := c.conn.ReadMessage()
+
 		if err != nil {
 			return
 		}
 		_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		key := "room:" + c.Room.Code
+		ctx := context.Background()
 
+		if err := rdb.RPush(ctx, key, string(message)).Err(); err != nil {
+			log.Println("Redis RPush error:", err)
+		}
+		if err := rdb.LTrim(ctx, key, -50, -1).Err(); err != nil {
+			log.Println("Redis LTrim error:", err)
+		}
+
+		if c.Room.active >= 3 {
+			var data map[string]interface{}
+			if err := json.Unmarshal(message, &data); err != nil {
+				log.Println("decode error:", err)
+				continue
+			}
+
+			if t, ok := data["type"].(string); ok && t == "agree" && !c.Ready {
+				c.Ready = true
+				c.Room.mu.Lock()
+				c.Room.Ready++
+				c.Room.mu.Unlock()
+
+				log.Printf("%s is ready", c.name)
+				msg, _ := json.Marshal(map[string]interface{}{
+					"type": "agree",
+					"data": map[string]string{
+						"username": c.name,
+					},
+				})
+				c.Room.broadcast <- msg
+
+				if c.Room.allReady() {
+					go c.Room.startGameCountDown()
+				}
+				continue
+			}
+
+		}
 		log.Printf("recv: %s", message)
 		c.Room.broadcast <- message
 	}
 }
 
 func (c *Client) writePump() {
+
 	ticker := time.NewTicker(pingPeriod)
+
 	defer func() {
 		ticker.Stop()
 		_ = c.conn.Close()
@@ -92,8 +135,6 @@ func (c *Client) writePump() {
 				return
 			}
 		case <-ticker.C:
-			// Control frame sifatida ping
-			// _ = c.conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second))
 			_ = c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
