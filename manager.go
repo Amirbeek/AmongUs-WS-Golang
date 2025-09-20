@@ -82,6 +82,7 @@ func (m *Manager) GetOrCreate(code string) *Room {
 	r = NewRoom(code)
 	m.rooms[code] = r
 	go r.run()
+	r.ensureSubscriber()
 	return r
 }
 

@@ -79,8 +79,10 @@ func (c *Client) readPump() {
 		if err := rdb.LTrim(ctx, key, -50, -1).Err(); err != nil {
 			log.Println("Redis LTrim error:", err)
 		}
-
-		if c.Room.active >= 3 {
+		c.Room.mu.RLock()
+		enoughPlayers := len(c.Room.Clients) >= 3
+		c.Room.mu.RUnlock()
+		if enoughPlayers {
 			var data map[string]interface{}
 			if err := json.Unmarshal(message, &data); err != nil {
 				log.Println("decode error:", err)
@@ -100,7 +102,7 @@ func (c *Client) readPump() {
 						"username": c.name,
 					},
 				})
-				c.Room.broadcast <- msg
+				c.Room.Publish(msg)
 
 				if c.Room.allReady() {
 					go c.Room.startGameCountDown()
@@ -109,8 +111,8 @@ func (c *Client) readPump() {
 			}
 
 		}
-		log.Printf("recv: %s", message)
-		c.Room.broadcast <- message
+		//log.Printf("recv: %s", message)
+		c.Room.Publish(message)
 	}
 }
 
@@ -126,7 +128,7 @@ func (c *Client) writePump() {
 		select {
 		case msg, ok := <-c.send:
 			_ = c.conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			log.Printf("send: %s", msg)
+			//log.Printf("send: %s", msg)
 			if !ok {
 				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return

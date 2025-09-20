@@ -15,7 +15,7 @@ func main() {
 
 func setupAPI() {
 	ctx := context.Background()
-	manager := NewManager(ctx) // <-- pass ctx
+	manager := NewManager(ctx)
 
 	http.Handle("/", http.FileServer(http.Dir("./public")))
 	http.HandleFunc("/ws", manager.ServeWS)
